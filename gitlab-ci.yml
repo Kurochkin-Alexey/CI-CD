@@ -1,0 +1,57 @@
+# Чтобы скрипт работал, надо в начале названия файла поставить "."
+
+stages:
+  - build
+  - style
+  - test
+  - deploy
+
+build:
+  stage: build
+  tags:
+    - build
+  script:
+    - cd src/cat && make s21_cat
+    - cd ../grep && make s21_grep
+  after_script:
+    - bash src/telegram_bot.sh
+  artifacts:
+    paths:
+      - src/cat/
+      - src/grep/
+    expire_in: 30 days
+
+style:
+  stage: style
+  tags:
+    - style
+  script:
+    - cd src
+    - clang-format -n --verbose cat/*.c
+    - clang-format -n --verbose grep/*.c
+  after_script:
+    - bash src/telegram_bot.sh
+
+test:
+  stage: test
+  needs: ["build","style"]
+  tags:
+    - test
+  script:
+    - cd src/cat && make && python3 cat_test.py
+    - cd ../grep && make && python3 grep_test.py
+  after_script:
+    - bash src/telegram_bot.sh
+
+deploy:
+  stage: deploy
+  needs: ["build","style","test"]
+  tags:
+    - deploy
+  script:
+    - cd src
+    - chmod +x deploy.sh
+    - bash deploy.sh
+  after_script:
+    - bash src/telegram_bot.sh
+  when: manual
